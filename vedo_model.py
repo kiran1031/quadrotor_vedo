@@ -14,7 +14,7 @@ from numpy import sqrt, arctan2, sin, cos, pi, arange, isclose
 
 
 camera1 = dict(
-    pos=(0, 50, 0),
+    pos=(0, 30, 6),
     focal_point=(0, 0, 0),
     viewup=(0, 0, 1)
 )
@@ -120,7 +120,7 @@ class QuadVedoModel(object):
         self.plt += self.prop3
         self.plt += self.prop4
 
-        self.plt.show(camera=camera2)
+        self.plt.show(camera=camera1)
 
     def test_translation(self, w1=42000, w2=42000, w3=-42000, w4=-42000, x_vel=1.0, y_vel=1.0, z_vel=1.0):
         """
@@ -375,6 +375,94 @@ class QuadVedoModel(object):
             prev_ang4 = ang4
 
         self.plt.interactive().close()
+
+    def animate_simulation(self, drone_object=None):
+        """
+        :param drone_object:
+        :return:
+        """
+        xpos, ypos, zpos = 0.0, 0.0, 0.0
+        ang1, ang2, ang3, ang4 = 0.0, 0.0, 0.0, 0.0
+        dt = drone_object.params["dt"]
+
+        LTrot = LinearTransform()
+        Ltrans = LinearTransform()
+        LT1 = LinearTransform()
+        LT2 = LinearTransform()
+        LT3 = LinearTransform()
+        LT4 = LinearTransform()
+        prev_ang1, prev_ang2, prev_ang3, prev_ang4 = 0.0, 0.0, 0.0, 0.0
+
+        for i in range(len(drone_object.t)):
+            ang1 = ang1 + 6 * drone_object.params["w1"] * dt
+            ang2 = ang2 + 6 * drone_object.params["w2"] * dt
+            ang3 = ang3 + 6 * drone_object.params["w3"] * dt
+            ang4 = ang4 + 6 * drone_object.params["w4"] * dt
+
+            xpos = drone_object.x[i, drone_object.plot_dict["xe"][0]]
+            ypos = drone_object.x[i, drone_object.plot_dict["ye"][0]]
+            zpos = drone_object.x[i, drone_object.plot_dict["ze"][0]]
+
+            yaw = drone_object.x[i, drone_object.plot_dict["psi"][0]] * 180 / pi
+            pitch = drone_object.x[i, drone_object.plot_dict["tht"][0]] * 180 / pi
+            roll = drone_object.x[i, drone_object.plot_dict["phi"][0]] * 180 / pi
+
+            Ltrans.translate([xpos, ypos, zpos])
+            Ltrans.move(self.quad_frame)
+            LTrot.rotate(yaw, axis=(0, 0, 1), point=(xpos, ypos, zpos), rad=False)
+            LTrot.rotate(pitch, axis=(0, 1, 0), point=(xpos, ypos, zpos), rad=False)
+            LTrot.rotate(roll, axis=(1, 0, 0), point=(xpos, ypos, zpos), rad=False)
+            LTrot.move(self.quad_frame)
+
+            new_prop1_pos = vector(xpos, ypos, zpos) + (
+                        vector(LTrot.matrix3x3 @ self.prop1.base) + vector(LTrot.matrix3x3 @ self.prop1.top)) / 2.0
+            new_prop2_pos = vector(xpos, ypos, zpos) + (
+                        vector(LTrot.matrix3x3 @ self.prop2.base) + vector(LTrot.matrix3x3 @ self.prop2.top)) / 2.0
+            new_prop3_pos = vector(xpos, ypos, zpos) + (
+                        vector(LTrot.matrix3x3 @ self.prop3.base) + vector(LTrot.matrix3x3 @ self.prop3.top)) / 2.0
+            new_prop4_pos = vector(xpos, ypos, zpos) + (
+                        vector(LTrot.matrix3x3 @ self.prop4.base) + vector(LTrot.matrix3x3 @ self.prop4.top)) / 2.0
+
+            new_prop_rot_axis = LTrot.matrix3x3 @ vector(0, 0, 1)
+
+            self.prop1.pos(new_prop1_pos[0], new_prop1_pos[1], new_prop1_pos[2])
+            self.prop2.pos(new_prop2_pos[0], new_prop2_pos[1], new_prop2_pos[2])
+            self.prop3.pos(new_prop3_pos[0], new_prop3_pos[1], new_prop3_pos[2])
+            self.prop4.pos(new_prop4_pos[0], new_prop4_pos[1], new_prop4_pos[2])
+
+            LT1.rotate(ang1 - prev_ang1, axis=new_prop_rot_axis,
+                       point=(new_prop1_pos[0], new_prop1_pos[1], new_prop1_pos[2]))
+            self.prop1.apply_transform(LT1)
+
+            LT2.rotate(ang2 - prev_ang2, axis=new_prop_rot_axis,
+                       point=(new_prop2_pos[0], new_prop2_pos[1], new_prop2_pos[2]))
+            self.prop2.apply_transform(LT2)
+
+            LT3.rotate(ang3 - prev_ang3, axis=new_prop_rot_axis,
+                       point=(new_prop3_pos[0], new_prop3_pos[1], new_prop3_pos[2]))
+            self.prop3.apply_transform(LT3)
+
+            LT4.rotate(ang4 - prev_ang4, axis=new_prop_rot_axis,
+                       point=(new_prop4_pos[0], new_prop4_pos[1], new_prop4_pos[2]))
+            self.prop4.apply_transform(LT4)
+
+            self.plt.render()
+
+            Ltrans.reset()
+            LTrot.reset()
+            LT1.reset()
+            LT2.reset()
+            LT3.reset()
+            LT4.reset()
+            self.quad_frame.transform.reset()
+
+            prev_ang1 = ang1
+            prev_ang2 = ang2
+            prev_ang3 = ang3
+            prev_ang4 = ang4
+
+        self.plt.interactive().close()
+
 
 
 # ************************************************************************* #
