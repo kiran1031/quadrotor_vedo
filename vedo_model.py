@@ -20,7 +20,7 @@ camera1 = dict(
 )
 
 camera2 = dict(
-    pos=(0, 0, 10),
+    pos=(0, 0, 5),
     focal_point=(0, 0, 0),
     viewup=(0, 1, 0)
 )
@@ -73,17 +73,20 @@ class QuadVedoModel(object):
         motor2 = Cylinder(
             pos=[(-0.5 * self.arm_len * cos(self.arm_ang), -0.5 * self.arm_len * sin(self.arm_ang), 0.0),
                  (-0.5 * self.arm_len * cos(self.arm_ang), -0.5 * self.arm_len * sin(self.arm_ang), 0.1 * self.arm_len)],
-            r=0.05 * self.arm_len
+            r=0.05 * self.arm_len,
+            c="blue"
         )
         motor3 = Cylinder(
             pos=[(-0.5 * self.arm_len * sin(self.arm_ang), 0.5 * self.arm_len * cos(self.arm_ang), 0.0),
                  (-0.5 * self.arm_len * sin(self.arm_ang), 0.5 * self.arm_len * cos(self.arm_ang), 0.1 * self.arm_len)],
             r=0.05 * self.arm_len,
+            c="green"
         )
         motor4 = Cylinder(
             pos=[(0.5 * self.arm_len * sin(self.arm_ang), -0.5 * self.arm_len * cos(self.arm_ang), 0.0),
                  (0.5 * self.arm_len * sin(self.arm_ang), -0.5 * self.arm_len * cos(self.arm_ang), 0.1 * self.arm_len)],
-            r=0.05 * self.arm_len
+            r=0.05 * self.arm_len,
+            c="yellow"
         )
         self.prop1 = Cylinder(
             pos=[(0.5 * self.arm_len * cos(self.arm_ang) - 0.2 * self.arm_len, 0.5 * self.arm_len * sin(self.arm_ang), 0.11 * self.arm_len),
@@ -117,7 +120,7 @@ class QuadVedoModel(object):
         self.plt += self.prop3
         self.plt += self.prop4
 
-        self.plt.show(camera=camera1)
+        self.plt.show(camera=camera2)
 
     def test_translation(self, w1=42000, w2=42000, w3=-42000, w4=-42000, x_vel=1.0, y_vel=1.0, z_vel=1.0):
         """
@@ -276,7 +279,7 @@ class QuadVedoModel(object):
 
         self.plt.interactive().close()
 
-    def test_general_motion(self, w1=42000, w2=42000, w3=-42000, w4=-42000,
+    def test_general_motion(self, w1=30, w2=30, w3=-30, w4=-30,
                             pitch_rate=0.0, roll_rate=0.0, yaw_rate=0.0, x_vel=0.0, y_vel=0.0, z_vel=0.0):
         """
 
@@ -308,7 +311,7 @@ class QuadVedoModel(object):
         LT4 = LinearTransform()
         prev_ang1, prev_ang2, prev_ang3, prev_ang4 = 0.0, 0.0, 0.0, 0.0
 
-        for i in range(500):
+        for i in range(1000):
             ang1 = ang1 + w1 * dt
             ang2 = ang2 + w2 * dt
             ang3 = ang3 + w3 * dt
@@ -387,5 +390,5 @@ if __name__ == "__main__":
     quad_vedo_model = QuadVedoModel(params=params)
     #quad_vedo_model.test_translation(x_vel=-1.0, y_vel=0.0, z_vel=0.0)
     #quad_vedo_model.test_rotation(mode="roll")
-    quad_vedo_model.test_general_motion(x_vel=-1.0, y_vel=1.0, z_vel=1.0, yaw_rate=10, pitch_rate=0, roll_rate=10)
+    quad_vedo_model.test_general_motion(x_vel=-0.0, y_vel=0.0, z_vel=0.0, yaw_rate=0, pitch_rate=0, roll_rate=0)
     #quad_vedo_model.plt.show(camera=camera)
