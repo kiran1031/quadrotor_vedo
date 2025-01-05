@@ -10,7 +10,9 @@ from numpy import array, radians, pi, arange, zeros, size, sqrt
 from numpy.linalg import inv
 from matplotlib.pyplot import plot, xlabel, ylabel, grid, axhline, figure, gca, show
 from matplotlib.ticker import StrMethodFormatter
+from munch import Munch
 from RigidBodyModel import RigidBodyModel
+from vedo_model import QuadVedoModel
 
 
 # ************************************************************************* #
@@ -62,7 +64,7 @@ class DroneSim(object):
         self.loads_to_w_matrix = None
         self.plot_no = 1
 
-        self.__plot_dict = {
+        self.plot_dict = {
             'u': (0, 'x velocity(m/s)'),
             'v': (1, 'y velocity(m/s)'),
             'w': (2, 'z velocity(m/s)'),
@@ -188,7 +190,7 @@ class DroneSim(object):
         self.plot_no = self.plot_no + 1
 
         if yvar == 'phi' or yvar == 'tht' or yvar == 'psi':
-            plot(self.t, self.x[:, self.__plotDict[yvar][0]] * 180 / pi)
+            plot(self.t, self.x[:, self.plot_dict[yvar][0]] * 180 / pi)
         elif yvar == 'rpm':
             plot(self.t, self.inp[:, 0], color='red')
             plot(self.t, self.inp[:, 1], color='blue')
@@ -196,10 +198,18 @@ class DroneSim(object):
             plot(self.t, self.inp[:, 3], color='black')
             axhline(y=self.get_hover_rpm(), color='red')
         else:
-            plot(self.t, self.x[:, self.__plot_dict[yvar][0]])
+            plot(self.t, self.x[:, self.plot_dict[yvar][0]])
         grid('on')
         xlabel('time(seconds)')
-        ylabel(self.__plot_dict[yvar][1])
+        ylabel(self.plot_dict[yvar][1])
+
+    def animate(self):
+        paramss = Munch({
+            'dx': self.params["dx"],
+            'dy': self.params["dy"],
+        })
+        quad_vedo_model = QuadVedoModel(params=paramss)
+        quad_vedo_model.animate_simulation(self)
 
 
 if __name__ == "__main__":
@@ -231,14 +241,14 @@ if __name__ == "__main__":
         'bm': 0.114e-6,  # yawing moment coeff of motor propeller
 
         # motor rpms
-        'w1': 5926.396232119796,
-        'w2': 5926.396232119796,
-        'w3': 5926.396232119796,
-        'w4': 5926.396232119796,
+        'w1': 5926.396232119796 + 10,
+        'w2': 5926.396232119796 - 10,
+        'w3': 5926.396232119796 + 10,
+        'w4': 5926.396232119796 - 10,
 
         # simulation parameters
-        'dt': 0.02,  # Sampling time (sec)
-        'tf': 10.0,  # Length of time to run simulation (sec),
+        'dt': 0.01,  # Sampling time (sec)
+        'tf': 2,  # Length of time to run simulation (sec),
         'X0': array([0,  # u0
                      0,  # v0
                      0.,  # w0
@@ -250,7 +260,7 @@ if __name__ == "__main__":
                      radians(0.),  # psi0
                      0.,  # x0
                      0.,  # y0
-                     0.]),  # z
+                     6.]),  # z
 
     }
 
@@ -258,12 +268,14 @@ if __name__ == "__main__":
     print(drone1.get_hover_rpm())
     drone1.time_simulate()
 
-    #vars_to_plot = ['phi', 'tht', 'psi', 'xe', 'ye', 'ze', 'u', 'v', 'w', 'p', 'q', 'r']
-    vars_to_plot = ['ze']
-    for var in vars_to_plot:
-        figure(drone1.plot_no)
-        drone1.plotter_with_time(yvar=var)
-        if var == 'ze':
-            gca().yaxis.set_major_formatter(StrMethodFormatter('{x:,.6f}'))
+    # #vars_to_plot = ['phi', 'tht', 'psi', 'xe', 'ye', 'ze', 'u', 'v', 'w', 'p', 'q', 'r']
+    # vars_to_plot = ['phi', 'tht', 'psi', 'xe', 'ye', 'ze']
+    # for var in vars_to_plot:
+    #     figure(drone1.plot_no)
+    #     drone1.plotter_with_time(yvar=var)
+    #     if var == 'ze':
+    #         gca().yaxis.set_major_formatter(StrMethodFormatter('{x:,.6f}'))
+    #
+    # show()
 
-    show()
+    drone1.animate()
