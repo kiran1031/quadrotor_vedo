@@ -14,7 +14,7 @@ from numpy import sqrt, arctan2, sin, cos, pi, arange, isclose
 
 
 camera1 = dict(
-    pos=(0, 30, 6),
+    pos=(0, 20, 0),
     focal_point=(0, 0, 0),
     viewup=(0, 0, 1)
 )
@@ -381,7 +381,6 @@ class QuadVedoModel(object):
         :param drone_object:
         :return:
         """
-        xpos, ypos, zpos = 0.0, 0.0, 0.0
         ang1, ang2, ang3, ang4 = 0.0, 0.0, 0.0, 0.0
         dt = drone_object.params["dt"]
 
@@ -430,21 +429,24 @@ class QuadVedoModel(object):
             self.prop3.pos(new_prop3_pos[0], new_prop3_pos[1], new_prop3_pos[2])
             self.prop4.pos(new_prop4_pos[0], new_prop4_pos[1], new_prop4_pos[2])
 
-            LT1.rotate(ang1 - prev_ang1, axis=new_prop_rot_axis,
+            LT1.rotate(ang1, axis=new_prop_rot_axis,
                        point=(new_prop1_pos[0], new_prop1_pos[1], new_prop1_pos[2]))
             self.prop1.apply_transform(LT1)
 
-            LT2.rotate(ang2 - prev_ang2, axis=new_prop_rot_axis,
+            LT2.rotate(ang2, axis=new_prop_rot_axis,
                        point=(new_prop2_pos[0], new_prop2_pos[1], new_prop2_pos[2]))
             self.prop2.apply_transform(LT2)
 
-            LT3.rotate(ang3 - prev_ang3, axis=new_prop_rot_axis,
+            LT3.rotate(ang3, axis=new_prop_rot_axis,
                        point=(new_prop3_pos[0], new_prop3_pos[1], new_prop3_pos[2]))
             self.prop3.apply_transform(LT3)
 
-            LT4.rotate(ang4 - prev_ang4, axis=new_prop_rot_axis,
+            LT4.rotate(ang4, axis=new_prop_rot_axis,
                        point=(new_prop4_pos[0], new_prop4_pos[1], new_prop4_pos[2]))
             self.prop4.apply_transform(LT4)
+
+            # self.plt.camera.SetPosition(xpos, ypos + 10, zpos)
+            # self.plt.camera.SetFocalPoint(xpos, ypos, zpos)
 
             self.plt.render()
 
