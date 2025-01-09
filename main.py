@@ -6,7 +6,7 @@ This Module contains drone class to simulate drone dynamics
 # ************************************************************************* #
 #                          Import statements                                #
 # ************************************************************************* #
-from numpy import array, radians, pi, arange, zeros, size, sqrt
+from numpy import array, radians, pi, arange, zeros, size, sqrt, delete, vstack, append, unique, ix_
 from numpy.linalg import inv
 from matplotlib.pyplot import plot, xlabel, ylabel, grid, axhline, figure, gca, show
 from matplotlib.ticker import StrMethodFormatter
@@ -94,6 +94,9 @@ class DroneSim(object):
         self.n_inputs = 4  # Number of inputs
         self.x = zeros((size(self.t), self.n_states))  # time history of state vectors
         self.inp = zeros((size(self.t), self.n_inputs))  # time history of input vectors
+
+        self.conv_t = array([])
+        self.conv_x = array([])
 
         self.get_rpm_to_loads_matrix()
 
@@ -210,10 +213,13 @@ class DroneSim(object):
 
         print('*******************Solver ran successfully********************')
 
-    def move_to_xyz(self, xd: float = 0., yd: float = 0., zd: float = 0., psi_des: float = 0., conv_tol: float = 0.01):
+    def move_to_xyz(self, xd: float = 0., yd: float = 0., zd: float = 0., psi_des: float = 0., conv_tol: float = 0.01,
+                    break_bool: bool=True):
 
         if 'X0' in list(self.params.keys()):
             X0 = self.params['X0']
+            if isinstance(X0, tuple):
+                X0 = X0[0]
         else:
             X0 = zeros(12)
         y_tmp, y_new = X0.copy(), X0.copy()
@@ -469,25 +475,35 @@ class DroneSim(object):
 
             self.x[t_idx + 1, :] = y_tmp
 
-            x_per = abs(xd - y_tmp[9]) / xd * 100
-            y_per = abs(yd - y_tmp[10]) / yd * 100
-            z_per = abs(zd - y_tmp[11]) / zd * 100
+            x_per = abs(xd - y_tmp[9])
+            y_per = abs(yd - y_tmp[10])
+            z_per = abs(zd - y_tmp[11])
 
             # print('time = ', self.params['t'][t_idx], ' x_error = ', x_per, ' y_error = ', y_per, ' z_error = ', z_per)
 
             if (x_per < conv_tol) and (y_per < conv_tol) and (z_per < conv_tol):
                 print('converged on position at time = ', self.t[t_idx])
-                for tt_idx in range(len(self.t[t_idx:]) - 1):
-                    self.x[t_idx + tt_idx + 1, :] = y_tmp
-                    # print(self.params['t'][t_idx+tt_idx])
+                if break_bool:
+                    self.conv_t = delete(self.t, range(t_idx, len(self.t)))
+                    self.conv_x = delete(self.x, range(t_idx, self.x.shape[0]), axis=0)
                 break
 
-    def plotter_with_time(self, yvar: str = 'ze'):
+    def plotter_with_time(self, yvar: str = 'ze', t_solution=array([]), x_solution=array([])):
+
+        if t_solution.size > 0:
+            t_to_plot = t_solution
+        else:
+            t_to_plot = self.t
+
+        if x_solution.size > 0:
+            x_to_plot = x_solution
+        else:
+            x_to_plot = self.x
 
         self.plot_no = self.plot_no + 1
 
         if yvar == 'phi' or yvar == 'tht' or yvar == 'psi':
-            plot(self.t, self.x[:, self.plot_dict[yvar][0]] * 180 / pi)
+            plot(t_to_plot, x_to_plot[:, self.plot_dict[yvar][0]] * 180 / pi)
         elif yvar == 'rpm':
             plot(self.t, self.inp[:, 0], color='red')
             plot(self.t, self.inp[:, 1], color='blue')
@@ -495,18 +511,18 @@ class DroneSim(object):
             plot(self.t, self.inp[:, 3], color='black')
             axhline(y=self.get_hover_rpm(), color='red')
         else:
-            plot(self.t, self.x[:, self.plot_dict[yvar][0]])
+            plot(t_to_plot, x_to_plot[:, self.plot_dict[yvar][0]])
         grid('on')
         xlabel('time(seconds)')
         ylabel(self.plot_dict[yvar][1])
 
-    def animate(self):
+    def animate(self, t_solution=array([]), x_solution=array([])):
         paramss = Munch({
             'dx': self.params["dx"],
             'dy': self.params["dy"],
         })
         quad_vedo_model = QuadVedoModel(params=paramss)
-        quad_vedo_model.animate_simulation(self)
+        quad_vedo_model.animate_simulation(self, t_solution=t_solution, x_solution=x_solution)
 
 
 if __name__ == "__main__":
@@ -601,16 +617,53 @@ if __name__ == "__main__":
     drone1 = DroneSim(params=params)
     print(drone1.get_hover_rpm())
     #drone1.time_simulate()
-    drone1.move_to_xyz(3, 0, 2, 0)
+    #drone1.move_to_xyz(3, 0, 2, 0)
+
+    # trajectory control
+    t_solution = array([])
+    x_solution = array([])
+
+    for t_idx, t_pos in enumerate(arange(1, 11, 1)):
+        drone1.move_to_xyz(t_pos, 0, t_pos, break_bool=True)
+        if drone1.conv_x.size > 0:
+            t = drone1.conv_t
+            x = drone1.conv_x
+        else:
+            t = drone1.t
+            x = drone1.x
+
+        if t_idx == 0:
+            x_solution = x.copy()
+            t_solution = t.copy()
+        else:
+            x_solution = vstack((x_solution, x))
+            t_solution = append(t_solution, t_solution[-1] + t)
+
+        drone1.params["X0"] = array([0,  # u0
+                                     0,  # v0
+                                     0.,  # w0
+                                     0,  # p0
+                                     0,  # q0
+                                     0,  # r0
+                                     radians(0.),  # phi0
+                                     radians(0.),  # tht0
+                                     radians(0.),  # psi0
+                                     t_pos,  # x0
+                                     0.,  # y0
+                                     t_pos]),  # z
+
+    t_solution, index_t_solution = unique(t_solution, return_index=True)
+    x_solution = x_solution[ix_(index_t_solution), :][0]
+    assert t_solution.shape[0] == x_solution.shape[0]
 
     # #vars_to_plot = ['phi', 'tht', 'psi', 'xe', 'ye', 'ze', 'u', 'v', 'w', 'p', 'q', 'r']
     # vars_to_plot = ['phi', 'tht', 'psi', 'xe', 'ye', 'ze']
     # for var in vars_to_plot:
     #     figure(drone1.plot_no)
-    #     drone1.plotter_with_time(yvar=var)
+    #     drone1.plotter_with_time(yvar=var, x_solution=x_solution, t_solution=t_solution)
     #     if var == 'ze':
     #         gca().yaxis.set_major_formatter(StrMethodFormatter('{x:,.6f}'))
     #
     # show()
 
-    drone1.animate()
+    drone1.animate(t_solution=t_solution, x_solution=x_solution)
