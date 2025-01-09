@@ -8,13 +8,13 @@ It is a parameterized model,
 # ************************************************************************* #
 #                          Import statements                                #
 # ************************************************************************* #
-from vedo import Box, Cylinder, Plotter, LinearTransform, Box, vector
+from vedo import Box, Cylinder, Sphere, Plotter, LinearTransform, Box, vector
 from munch import Munch
-from numpy import sqrt, arctan2, sin, cos, pi, arange, isclose
+from numpy import sqrt, arctan2, sin, cos, pi, arange, isclose, array
 
 
 camera1 = dict(
-    pos=(0, 20, 0),
+    pos=(0, 40, 0),
     focal_point=(0, 0, 0),
     viewup=(0, 0, 1)
 )
@@ -34,6 +34,7 @@ class QuadVedoModel(object):
     def __init__(self, params=None):
         self.arm_len = None
         self.arm_ang = None
+        self.pos_sphere = None
         self.prop1 = None
         self.prop2 = None
         self.prop3 = None
@@ -54,6 +55,7 @@ class QuadVedoModel(object):
 
     def create_model(self):
         world = Box(pos=(0, 0, 0), size=(20, 20, 20)).wireframe()
+        self.pos_sphere = Sphere(pos=(0, 0, 0), r=0.001).color("gray")
         arm1 = Cylinder(
             pos=[(0.5 * self.arm_len * cos(self.arm_ang), 0.5 * self.arm_len * sin(self.arm_ang), 0.0),
                  (-0.5 * self.arm_len * cos(self.arm_ang), -0.5 * self.arm_len * sin(self.arm_ang), 0.0)],
@@ -108,12 +110,13 @@ class QuadVedoModel(object):
                  (0.5 * self.arm_len * sin(self.arm_ang) + 0.2 * self.arm_len, -0.5 * self.arm_len * cos(self.arm_ang), 0.11 * self.arm_len)],
             r=0.01 * self.arm_len
         )
-        # self.quad_frame = arm1 + arm2 + motor1 + motor2 + motor3 + motor4 + self.prop1 + self.prop2 + self.prop3 + \
-        #                   self.prop4
         self.quad_frame = arm1 + arm2 + motor1 + motor2 + motor3 + motor4
+
+        self.pos_sphere.add_trail(n=10000)
 
         self.plt = Plotter(title="Quad Model", axes=1, interactive=False)
         self.plt += world
+        self.plt += self.pos_sphere
         self.plt += self.quad_frame
         self.plt += self.prop1
         self.plt += self.prop2
@@ -376,11 +379,22 @@ class QuadVedoModel(object):
 
         self.plt.interactive().close()
 
-    def animate_simulation(self, drone_object=None):
+    def animate_simulation(self, drone_object=None, t_solution=array([]), x_solution=array([])):
         """
         :param drone_object:
         :return:
         """
+
+        if t_solution.size > 0:
+            t_to_animate = t_solution
+        else:
+            t_to_animate = drone_object.t
+
+        if x_solution.size > 0:
+            x_to_animate = x_solution
+        else:
+            x_to_animate = drone_object.x
+
         ang1, ang2, ang3, ang4 = 0.0, 0.0, 0.0, 0.0
         dt = drone_object.params["dt"]
 
@@ -392,19 +406,21 @@ class QuadVedoModel(object):
         LT4 = LinearTransform()
         prev_ang1, prev_ang2, prev_ang3, prev_ang4 = 0.0, 0.0, 0.0, 0.0
 
-        for i in range(len(drone_object.t)):
+        for i in range(len(t_to_animate)):
             ang1 = ang1 + 6 * drone_object.params["w1"] * dt
             ang2 = ang2 + 6 * drone_object.params["w2"] * dt
             ang3 = ang3 + 6 * drone_object.params["w3"] * dt
             ang4 = ang4 + 6 * drone_object.params["w4"] * dt
 
-            xpos = drone_object.x[i, drone_object.plot_dict["xe"][0]]
-            ypos = drone_object.x[i, drone_object.plot_dict["ye"][0]]
-            zpos = drone_object.x[i, drone_object.plot_dict["ze"][0]]
+            xpos = x_to_animate[i, drone_object.plot_dict["xe"][0]]
+            ypos = x_to_animate[i, drone_object.plot_dict["ye"][0]]
+            zpos = x_to_animate[i, drone_object.plot_dict["ze"][0]]
 
-            yaw = drone_object.x[i, drone_object.plot_dict["psi"][0]] * 180 / pi
-            pitch = drone_object.x[i, drone_object.plot_dict["tht"][0]] * 180 / pi
-            roll = drone_object.x[i, drone_object.plot_dict["phi"][0]] * 180 / pi
+            yaw = x_to_animate[i, drone_object.plot_dict["psi"][0]] * 180 / pi
+            pitch = x_to_animate[i, drone_object.plot_dict["tht"][0]] * 180 / pi
+            roll = x_to_animate[i, drone_object.plot_dict["phi"][0]] * 180 / pi
+
+            self.pos_sphere.pos(xpos, ypos, zpos)
 
             Ltrans.translate([xpos, ypos, zpos])
             Ltrans.move(self.quad_frame)
@@ -448,6 +464,8 @@ class QuadVedoModel(object):
             # self.plt.camera.SetPosition(xpos, ypos + 10, zpos)
             # self.plt.camera.SetFocalPoint(xpos, ypos, zpos)
 
+            self.pos_sphere.update_trail()
+
             self.plt.render()
 
             Ltrans.reset()
@@ -464,7 +482,6 @@ class QuadVedoModel(object):
             prev_ang4 = ang4
 
         self.plt.interactive().close()
-
 
 
 # ************************************************************************* #
